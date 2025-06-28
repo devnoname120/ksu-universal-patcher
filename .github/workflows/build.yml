@@ -330,6 +330,11 @@ jobs:
             sed -i '/res="$res${scm:++}"/d' scripts/setlocalversion
             echo 'CONFIG_KSU_KPROBES_HOOK=n' >> out/.config
 
+            if [ $(./scripts/config --state LTO_CLANG_FULL --file out/.config) == 'y' ]; then
+                ./scripts/config --disable LTO_CLANG_FULL --file out/.config
+                ./scripts/config --enable LTO_CLANG_THIN --file out/.config
+            fi
+
         - name: 'Build kernel'
           working-directory: './kernel-src'
           run: |
