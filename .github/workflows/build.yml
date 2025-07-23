@@ -326,13 +326,13 @@ jobs:
                 fi
             fi
 
-            ./scripts/config --disable LOCALVERSION_AUTO --file out/.config
+            ./scripts/config --file out/.config --disable LOCALVERSION_AUTO
             sed -i '/res="$res${scm:++}"/d' scripts/setlocalversion
             echo 'CONFIG_KSU_KPROBES_HOOK=n' >> out/.config
 
-            if [ $(./scripts/config --state LTO_CLANG_FULL --file out/.config) == 'y' ]; then
-                ./scripts/config --disable LTO_CLANG_FULL --file out/.config
-                ./scripts/config --enable LTO_CLANG_THIN --file out/.config
+            if [ $(./scripts/config --file out/.config --state LTO_CLANG_FULL) == 'y' ]; then
+                ./scripts/config --file out/.config --disable LTO_CLANG_FULL
+                ./scripts/config --file out/.config --enable LTO_CLANG_THIN
             fi
 
         - name: 'Build kernel'
