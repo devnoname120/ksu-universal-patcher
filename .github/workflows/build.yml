@@ -197,6 +197,10 @@ jobs:
             ./configure
             make -j$(nproc --all)
             sudo make -j$(nproc --all) install
+            cd ..
+
+            # Clone AnyKernel3
+            git clone --recursive --depth=1 -j $(nproc) --branch master https://github.com/devnoname120/AnyKernel3-axon7 AnyKernel3
 
         - name: 'Clone kernel source'
           run: |
@@ -420,3 +424,23 @@ jobs:
           with:
             name: kernel-build-artifacts
             path: ./kernel-build-artifacts*/
+
+        - name: "Pack AnyKernel3.zip"
+          run: |
+            ls -al
+  
+            if [ -e "out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/Image.gz" ]; then
+              cp -f out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/Image.gz ./AnyKernel3/
+            fi
+            if [ -e "out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo" ]; then
+              cp -f $out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo ./AnyKernel3/
+            fi
+            if [ -e "out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo.img" ]; then
+              cp -f out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo.img ./AnyKernel3/
+            fi
+  
+        - name: "Upload AnyKernel3 image"
+          uses: actions/upload-artifact@v4
+          with:
+            name: "kernel"
+            path: AnyKernel3/*
