@@ -342,6 +342,14 @@ jobs:
           run: |
             shopt -s globstar
             
+            # -----------------------------------------------------------------
+            # OLD dtc + modern GCC/Clang:
+            #   Force -fcommon for host-side objects so the duplicate yylloc
+            #   becomes a “common” definition – exactly what kernels < 5.11
+            #   expected when scripts/dtc was last synced.
+            # -----------------------------------------------------------------
+            export HOSTCFLAGS="-fcommon ${HOSTCFLAGS}"
+
             export CROSS_COMPILE_ARM32=$(realpath ~/**/arm-gnu-toolchain-*-x86_64-arm-none-linux-gnu*/bin)/arm-none-linux-gnueabihf-
 
             # Compile using make
