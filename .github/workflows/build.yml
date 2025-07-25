@@ -274,7 +274,7 @@ jobs:
 
             # Patch the kernel source with scope-minimized hooks
             cd kernelsu-coccinelle/scope-minimized-hooks
-            ./apply.sh ../..
+            # ./apply.sh ../..
             cd ../..
             
             # Cleanup
@@ -339,22 +339,25 @@ jobs:
                 fi
             fi
 
-            ./scripts/config --file out/.config --disable LOCALVERSION_AUTO
             sed -i '/res="$res${scm:++}"/d' scripts/setlocalversion
 
-            # Disable kprobes hooks since we are using manual hooks. We disable 4 options because KernelSU forks use different names for that option...
-            ./scripts/config --file out/.config --disable KSU_KPROBES_HOOK
-            ./scripts/config --file out/.config --disable KSU_HOOK_KPROBES
-            ./scripts/config --file out/.config --disable KSU_WITH_KPROBES
-            ./scripts/config --file out/.config --enable KSU_MANUAL_HOOK
-            
-            ./scripts/config --file out/.config --disable KSU_LSM_SECURITY_HOOKS
- 
+            echo -e '# CONFIG_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_HAVE_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KPROBE_EVENTS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
 
-            if [ $(./scripts/config --file out/.config --state LTO_CLANG_FULL) == 'y' ]; then
-                ./scripts/config --file out/.config --disable LTO_CLANG_FULL
-                ./scripts/config --file out/.config --enable LTO_CLANG_THIN
-            fi
+            echo -e 'CONFIG_KSU=y' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_DEBUG is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_ALLOWLIST_WORKAROUND is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_LSM_SECURITY_HOOKS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+
+            # Disable kprobes hooks since we are using manual hooks. We need to specify these 4 options because KernelSU forks use different names for it...
+            echo -e 'KSU_MANUAL_HOOK=y' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_KPROBES_HOOK is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_HOOK_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_WITH_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+
+            echo -e '# LOCALVERSION_AUTO is not set'>> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e 'CONFIG_LOCALVERSION="-g7f6bd6b2a3b2"' >> arch/arm64/configs/lineageos_axon7_defconfig
 
         - name: 'Build kernel'
           working-directory: './kernel-src'
