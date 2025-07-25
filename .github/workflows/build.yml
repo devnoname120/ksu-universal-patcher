@@ -96,41 +96,6 @@ jobs:
                 echo "--- All link-related workflow options seem to be valid! ---"
             fi
 
-        - name: 'Debloat the OS'
-          run: |
-            export DEBIAN_FRONTEND=noninteractive
-            echo "DEBIAN_FRONTEND=noninteractive" >> $GITHUB_ENV
-
-            echo "Storage spaces before debloat/clean-up:"
-            df -h
-
-            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/powershell /usr/share/swift || true
-            sudo docker image prune --all --force
-            echo "some directories deleted"
-
-            # Remove large unwanted packages
-            sudo apt-get purge -y \
-                aria2 ansible azure-cli shellcheck rpm xorriso zsync \
-                esl-erlang firefox gfortran-8 gfortran-9 google-chrome-stable \
-                google-cloud-sdk imagemagick \
-                libmagickcore-dev libmagickwand-dev libmagic-dev ant ant-optional kubectl \
-                mercurial apt-transport-https mono-complete libmysqlclient \
-                unixodbc-dev yarn chrpath libssl-dev libxft-dev \
-                libfreetype6 libfreetype6-dev libfontconfig1 libfontconfig1-dev \
-                snmp pollinate libpq-dev postgresql-client powershell ruby-full \
-                sphinxsearch subversion mongodb-org microsoft-edge-stable || true
-
-            # Regex-based purges (for bulk families like mysql, php, dotnet)
-            sudo apt-get purge -y $(dpkg-query -W -f='${binary:Package}\n' | grep -E '^mysql|^php|^dotnet') || true
-
-            # Clean up
-            sudo apt-get autoremove -y
-            sudo apt-get autoclean -y
-            echo "some packages purged"
-
-            echo "Storage spaces after debloat/clean-up:"
-            df -h
-
         - name: 'Setup dependencies and environment'
           run: |
             # Setup package sources and apt
@@ -142,10 +107,10 @@ jobs:
             sudo apt build-dep -y linux
 
             # Install clang and LLVM
-            LATEST_LLVM_TOOLCHAIN=$(curl -sSf https://api.github.com/repos/llvm/llvm-project/releases/latest | grep browser_download_url | cut -d '"' -f 4 | grep -wi "Linux-X64.tar.xz"$)
-            wget $LATEST_LLVM_TOOLCHAIN -O ./LLVM-latest-Linux-X64.tar.xz
-            tar --wildcards -xvpf ./LLVM-latest-Linux-X64.tar.xz --warning=no-file-changed --ignore-failed-read || true
-            rm -rf *.tar.xz
+            # LATEST_LLVM_TOOLCHAIN=$(curl -sSf https://api.github.com/repos/llvm/llvm-project/releases/latest | grep browser_download_url | cut -d '"' -f 4 | grep -wi "Linux-X64.tar.xz"$)
+            # wget $LATEST_LLVM_TOOLCHAIN -O ./LLVM-latest-Linux-X64.tar.xz
+            # tar --wildcards -xvpf ./LLVM-latest-Linux-X64.tar.xz --warning=no-file-changed --ignore-failed-read || true
+            # rm -rf *.tar.xz
 
             # Install GCC for aarch64 and arm(32)
             wget https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-linux-gnueabihf.tar.xz https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
@@ -290,6 +255,26 @@ jobs:
 
             export CROSS_COMPILE_ARM32=$(realpath ~/**/arm-gnu-toolchain-*-x86_64-arm-none-linux-gnu*/bin)/arm-none-linux-gnueabihf-
 
+            sed -i '/res="$res${scm:++}"/d' scripts/setlocalversion
+
+            echo -e '# CONFIG_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_HAVE_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KPROBE_EVENTS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+
+            echo -e 'CONFIG_KSU=y' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_DEBUG is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_ALLOWLIST_WORKAROUND is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_LSM_SECURITY_HOOKS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+
+            # Disable kprobes hooks since we are using manual hooks. We need to specify these 4 options because KernelSU forks use different names for it...
+            echo -e 'KSU_MANUAL_HOOK=y' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_KPROBES_HOOK is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_HOOK_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e '# CONFIG_KSU_WITH_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
+
+            echo -e '# LOCALVERSION_AUTO is not set'>> arch/arm64/configs/lineageos_axon7_defconfig
+            echo -e 'CONFIG_LOCALVERSION="-g7f6bd6b2a3b2"' >> arch/arm64/configs/lineageos_axon7_defconfig
+
             # Generate kernel config using make
             if [ ${{ github.event.inputs.KERNEL_COMPILER }} == 'Clang/LLVM' ]; then
                 if [ ! -z ${{ github.event.inputs.KERNEL_COMPILER_TOOLCHAIN }} ]; then
@@ -338,26 +323,6 @@ jobs:
                     fi
                 fi
             fi
-
-            sed -i '/res="$res${scm:++}"/d' scripts/setlocalversion
-
-            echo -e '# CONFIG_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_HAVE_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KPROBE_EVENTS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-
-            echo -e 'CONFIG_KSU=y' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_DEBUG is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_ALLOWLIST_WORKAROUND is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_LSM_SECURITY_HOOKS is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-
-            # Disable kprobes hooks since we are using manual hooks. We need to specify these 4 options because KernelSU forks use different names for it...
-            echo -e 'KSU_MANUAL_HOOK=y' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_KPROBES_HOOK is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_HOOK_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e '# CONFIG_KSU_WITH_KPROBES is not set' >> arch/arm64/configs/lineageos_axon7_defconfig
-
-            echo -e '# LOCALVERSION_AUTO is not set'>> arch/arm64/configs/lineageos_axon7_defconfig
-            echo -e 'CONFIG_LOCALVERSION="-g7f6bd6b2a3b2"' >> arch/arm64/configs/lineageos_axon7_defconfig
 
         - name: 'Build kernel'
           working-directory: './kernel-src'
@@ -436,7 +401,7 @@ jobs:
               cp -f out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/Image.gz ./AnyKernel3/
             fi
             if [ -e "out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo" ]; then
-              cp -f $out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo ./AnyKernel3/
+              cp -f out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo ./AnyKernel3/
             fi
             if [ -e "out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo.img" ]; then
               cp -f out/arch/${{ github.event.inputs.KERNEL_ARCH }}/boot/dtbo.img ./AnyKernel3/
